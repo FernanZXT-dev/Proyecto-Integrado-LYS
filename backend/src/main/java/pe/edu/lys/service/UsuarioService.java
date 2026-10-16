@@ -40,6 +40,10 @@ public class UsuarioService {
     return respuesta(usuarios.save(u));
   }
 
+  @Transactional(readOnly = true)
+  public List<CuentaResponse> listar() {
+    return usuarios.findAll().stream().map(this::respuesta).toList();
+  }
 
   @Transactional(readOnly = true)
   public List<RolResponse> roles() {

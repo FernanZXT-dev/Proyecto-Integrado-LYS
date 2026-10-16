@@ -17,6 +17,10 @@ public class UsuarioController {
     this.service = service;
   }
 
+  @GetMapping("/usuarios")
+  public List<CuentaResponse> listar() {
+    return service.listar();
+  }
 
   @PostMapping("/usuarios")
   @ResponseStatus(HttpStatus.CREATED)

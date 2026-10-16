@@ -186,6 +186,9 @@ class BackendIntegrationTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("rol").value("COCINA"))
         .andExpect(jsonPath("clave").doesNotExist());
+    mvc.perform(get("/api/usuarios").header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].clave").doesNotExist());
     String cocinaToken =
         contenido(
                 mvc.perform(
