@@ -43,6 +43,15 @@ public class PedidoService {
 
   private record Actor(Cliente cliente, Usuario usuario) {}
 
+  public PedidoResponse crear(PedidoRequest datos, Jwt jwt) {
+    Actor actor = actor(jwt);
+    Pedido pedido = new Pedido();
+    pedido.setCliente(actor.cliente());
+    pedido.setRegistradoPor(actor.usuario());
+    pedido.setCreadoEn(Instant.now());
+    completar(pedido, datos);
+    return respuesta(pedidos.saveAndFlush(pedido));
+  }
 
 
 
@@ -118,10 +127,44 @@ public class PedidoService {
     return item;
   }
 
+  private void autorizarPropietario(Pedido pedido, Actor actor) {
+    if (actor.cliente() != null && (pedido.getCliente() == null
+        || !pedido.getCliente().getId().equals(actor.cliente().getId()))) throw noEncontrado();
+  }
 
+  private Actor actor(Jwt jwt) {
+    if (jwt == null) throw sesionInvalida();
+    String rol = jwt.getClaimAsString("rol");
+    String prefijo = "CLIENTE".equals(rol) ? "cliente:" : "usuario:";
+    if (jwt.getSubject() == null || !jwt.getSubject().startsWith(prefijo)) throw sesionInvalida();
+    long id;
+    try { id = Long.parseLong(jwt.getSubject().substring(prefijo.length())); }
+    catch (NumberFormatException e) { throw sesionInvalida(); }
+    if ("CLIENTE".equals(rol)) {
+      Cliente cliente = clientes.findById(id).filter(Cliente::isActivo).orElseThrow(this::sesionInvalida);
+      return new Actor(cliente, null);
+    }
+    Usuario usuario = usuarios.findById(id).filter(Usuario::isActivo)
+        .filter(u -> u.getRol().getNombre().equals(rol)).orElseThrow(this::sesionInvalida);
+    return new Actor(null, usuario);
+  }
 
+  private PedidoResponse respuesta(Pedido pedido) {
+    return new PedidoResponse(pedido.getId(), pedido.getCliente() == null ? null : pedido.getCliente().getId(),
+        pedido.getModalidad(), pedido.getEstado(), pedido.getNombreContacto(), pedido.getTelefono(),
+        pedido.getMesa(), pedido.getDireccion(), pedido.getReferencia(), pedido.getSubtotal(),
+        pedido.getCostoDelivery(), pedido.getTotal(), pedido.getCreadoEn(), pedido.getActualizadoEn(),
+        pedido.getItems().stream().map(i -> new PedidoItemResponse(i.getId(),
+            i.getProducto() == null ? null : i.getProducto().getId(),
+            i.getCombo() == null ? null : i.getCombo().getId(),
+            i.getPromocion() == null ? null : i.getPromocion().getId(), i.getNombre(), i.getContenidoCombo(),
+            i.getCantidad(), i.getPrecioBase(), i.getPorcentajeDescuento(), i.getPrecioUnitario(), i.getTotal(),
+            i.getPersonalizaciones().stream().sorted().toList(), i.getIndicaciones())).toList());
+  }
 
   private String limpiar(String texto) { return texto == null || texto.isBlank() ? null : texto.trim(); }
+  private ApiException noEncontrado() { return new ApiException(HttpStatus.NOT_FOUND, "Pedido no encontrado"); }
+  private ApiException sesionInvalida() { return new ApiException(HttpStatus.UNAUTHORIZED, "La cuenta o sesión no está activa"); }
   private ApiException invalido(String mensaje) { return new ApiException(HttpStatus.BAD_REQUEST, mensaje); }
   private ApiException conflicto(String mensaje) { return new ApiException(HttpStatus.CONFLICT, mensaje); }
 }

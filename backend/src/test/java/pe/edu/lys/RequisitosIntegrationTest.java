@@ -47,11 +47,13 @@ class RequisitosIntegrationTest {
   @Autowired ProductoRepository productos;
   @Autowired ComboRepository combos;
   @Autowired PromocionRepository promociones;
+  @Autowired PedidoRepository pedidos;
   private String admin, cliente, otroCliente, cocina, mesera, ventas;
   private long clienteId, productoId, bebidaId;
 
   @BeforeEach
   void preparar() throws Exception {
+    pedidos.deleteAll();
     promociones.deleteAll();
     combos.deleteAll();
     productos.deleteAll();
@@ -123,7 +125,19 @@ class RequisitosIntegrationTest {
         Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600)), 201).get("id").asLong();
   }
 
+  private Map<String, Object> pedido(Modalidad modalidad) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("modalidad", modalidad.name()); body.put("nombreContacto", "Ana");
+    body.put("telefono", "999888777"); body.put("mesa", "03");
+    body.put("direccion", "Av. Principal 123"); body.put("referencia", "Puerta azul");
+    body.put("items", List.of(Map.of("productoId", productoId, "cantidad", 1,
+        "personalizaciones", List.of())));
+    return body;
+  }
 
+  private long crearPedido() throws Exception {
+    return enviar(post("/api/pedidos"), cliente, pedido(Modalidad.RECOJO), 201).get("id").asLong();
+  }
 
   @Test
   void rf01AdministradorReactivaProductoYClienteNoGestiona() throws Exception {
@@ -193,18 +207,83 @@ class RequisitosIntegrationTest {
     assertEquals(1, catalogo.get("productos").size());
     assertEquals(0, catalogo.get("combos").size());
     assertEquals(0, catalogo.get("promociones").size());
+    Map<String, Object> pedido = pedido(Modalidad.RECOJO);
+    pedido.put("items", List.of(Map.of("comboId", combo, "cantidad", 1)));
+    enviar(post("/api/pedidos"), cliente, pedido, 409);
+  }
+
+  @ParameterizedTest
+  @EnumSource(Modalidad.class)
+  void rf04RegistraLasTresModalidadesYCalculaImportesEnServidor(Modalidad modalidad) throws Exception {
+    Map<String, Object> body = pedido(modalidad);
+    body.put("total", 1); body.put("clienteId", -1); body.put("estado", "EN_PREPARACION");
+    JsonNode result = enviar(post("/api/pedidos"), cliente, body, 201);
+    assertEquals(modalidad.name(), result.get("modalidad").asText());
+    assertEquals("RECIBIDO", result.get("estado").asText());
+    assertEquals(clienteId, result.get("clienteId").asLong());
+    assertEquals(60, result.get("subtotal").asInt());
+    assertEquals(modalidad == Modalidad.DELIVERY ? 66 : 60, result.get("total").asInt());
+    assertEquals(modalidad == Modalidad.LOCAL, !result.get("mesa").isNull());
+    assertEquals(modalidad == Modalidad.DELIVERY, !result.get("direccion").isNull());
+  }
+
+  @Test
+  void rf04PersonalRegistraPedidosLocalesSinCuentaDeCliente() throws Exception {
+    Map<String, Object> body = pedido(Modalidad.LOCAL);
+    body.remove("telefono");
+    JsonNode result = enviar(post("/api/pedidos"), mesera, body, 201);
+    assertTrue(result.get("clienteId").isNull());
   }
 
 
 
 
+  @Test
+  void aplicaPromocionDeComboSinAcumularLosDescuentosDeSusProductos() throws Exception {
+    long combo = crearCombo();
+    promocion(productoId, null, 50);
+    promocion(null, combo, 10);
+    Map<String, Object> body = pedido(Modalidad.RECOJO);
+    body.put("items", List.of(Map.of("comboId", combo, "cantidad", 2)));
+    JsonNode pedido = enviar(post("/api/pedidos"), cliente, body, 201);
+    assertEquals("58.50", pedido.get("items").get(0).get("precioUnitario").decimalValue().setScale(2).toPlainString());
+    assertEquals(117, pedido.get("total").asInt());
+  }
+
+  @Test
+  void categoriaInactivaOcultaCombosPromocionesYRechazaPedidos() throws Exception {
+    crearCombo();
+    promocion(productoId, null, 10);
+    long categoria = enviar(get("/api/productos/" + productoId), null, null, 200).get("categoriaId").asLong();
+    enviar(delete("/api/categorias/" + categoria), admin, null, 204);
+    JsonNode catalogo = enviar(get("/api/catalogo"), null, null, 200);
+    assertEquals(0, catalogo.get("productos").size());
+    assertEquals(0, catalogo.get("combos").size());
+    assertEquals(0, catalogo.get("promociones").size());
+    enviar(post("/api/pedidos"), cliente, pedido(Modalidad.RECOJO), 409);
+  }
 
 
 
 
-
-
-
+  @Test
+  void validaCantidadesModalidadYDestinosSinGuardarPedidosInvalidos() throws Exception {
+    Map<String, Object> body = pedido(Modalidad.LOCAL);
+    body.remove("mesa"); enviar(post("/api/pedidos"), cliente, body, 400);
+    body = pedido(Modalidad.DELIVERY); body.put("direccion", "   ");
+    enviar(post("/api/pedidos"), cliente, body, 400);
+    body = pedido(Modalidad.RECOJO); body.remove("telefono");
+    enviar(post("/api/pedidos"), cliente, body, 400);
+    body = pedido(Modalidad.RECOJO);
+    for (Object items : List.of(List.of(), List.of(Map.of("productoId", productoId, "cantidad", 0)),
+        List.of(Map.of("productoId", productoId, "comboId", 1, "cantidad", 1)),
+        List.of(Map.of("cantidad", 1)), List.of(Map.of("productoId", productoId, "cantidad", 51)))) {
+      body.put("items", items); enviar(post("/api/pedidos"), cliente, body, 400);
+    }
+    body.put("items", List.of(Map.of("productoId", 999999, "cantidad", 1)));
+    enviar(post("/api/pedidos"), cliente, body, 404);
+    assertEquals(0, pedidos.count());
+  }
 
   @Test
   void validaComposicionDeCombosYLimitesDeDescuento() throws Exception {
