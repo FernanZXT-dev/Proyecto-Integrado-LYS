@@ -1,4 +1,14 @@
 package pe.edu.lys.repository;
-import org.springframework.data.jpa.repository.JpaRepository;
+
+import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 import pe.edu.lys.entity.Pedido;
-public interface PedidoRepository extends JpaRepository<Pedido, Long> {}
+
+public interface PedidoRepository extends JpaRepository<Pedido, Long> {
+  List<Pedido> findAllByOrderByCreadoEnDescIdDesc();
+  List<Pedido> findByClienteIdOrderByCreadoEnDescIdDesc(Long clienteId);
+
+}

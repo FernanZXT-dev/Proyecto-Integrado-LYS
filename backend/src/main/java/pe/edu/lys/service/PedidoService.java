@@ -53,7 +53,20 @@ public class PedidoService {
     return respuesta(pedidos.saveAndFlush(pedido));
   }
 
+  @Transactional(readOnly = true)
+  public List<PedidoResponse> listar(Jwt jwt) {
+    Actor actor = actor(jwt);
+    return (actor.cliente() != null
+        ? pedidos.findByClienteIdOrderByCreadoEnDescIdDesc(actor.cliente().getId())
+        : pedidos.findAllByOrderByCreadoEnDescIdDesc()).stream().map(this::respuesta).toList();
+  }
 
+  @Transactional(readOnly = true)
+  public PedidoResponse consultar(Long id, Jwt jwt) {
+    Pedido pedido = pedidos.findById(id).orElseThrow(this::noEncontrado);
+    autorizarPropietario(pedido, actor(jwt));
+    return respuesta(pedido);
+  }
 
 
 

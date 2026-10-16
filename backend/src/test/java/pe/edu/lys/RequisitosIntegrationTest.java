@@ -233,10 +233,27 @@ class RequisitosIntegrationTest {
     body.remove("telefono");
     JsonNode result = enviar(post("/api/pedidos"), mesera, body, 201);
     assertTrue(result.get("clienteId").isNull());
+    enviar(get("/api/pedidos/" + result.get("id").asLong()), cliente, null, 404);
+    assertEquals(1, enviar(get("/api/pedidos"), ventas, null, 200).size());
   }
 
 
 
+  @Test
+  void preciosYDescuentosSeConservanAunqueCambieElCatalogo() throws Exception {
+    promocion(productoId, null, 10);
+    long mejor = promocion(productoId, null, 20);
+    long id = crearPedido();
+    JsonNode pedido = enviar(get("/api/pedidos/" + id), cliente, null, 200);
+    assertEquals(48, pedido.get("total").asInt());
+    assertEquals(mejor, pedido.get("items").get(0).get("promocionId").asLong());
+    long categoria = enviar(get("/api/productos/" + productoId), null, null, 200).get("categoriaId").asLong();
+    enviar(put("/api/productos/" + productoId), admin, producto(categoria, "Nuevo nombre", 100, true), 200);
+    enviar(delete("/api/promociones/" + mejor), admin, null, 204);
+    pedido = enviar(get("/api/pedidos/" + id), cliente, null, 200);
+    assertEquals(48, pedido.get("total").asInt());
+    assertEquals("Pollo", pedido.get("items").get(0).get("nombre").asText());
+  }
 
   @Test
   void aplicaPromocionDeComboSinAcumularLosDescuentosDeSusProductos() throws Exception {
@@ -265,6 +282,16 @@ class RequisitosIntegrationTest {
 
 
 
+  @Test
+  void clienteSoloConsultaModificaOCancelaSusPropiosPedidos() throws Exception {
+    long id = crearPedido();
+    assertEquals(0, enviar(get("/api/pedidos"), otroCliente, null, 200).size());
+    enviar(get("/api/pedidos/" + id), otroCliente, null, 404);
+    enviar(get("/api/pedidos/" + id), null, null, 401);
+    enviar(get("/api/pedidos"), cocina, null, 403);
+    assertEquals(1, enviar(get("/api/pedidos"), cliente, null, 200).size());
+    enviar(get("/api/pedidos/" + id), admin, null, 200);
+  }
 
   @Test
   void validaCantidadesModalidadYDestinosSinGuardarPedidosInvalidos() throws Exception {
@@ -300,5 +327,13 @@ class RequisitosIntegrationTest {
     assertEquals(0, promociones.count());
   }
 
+  @Test
+  void cuentaDesactivadaNoPuedeOperarPedidosConSuTokenAnterior() throws Exception {
+    long id = crearPedido();
+    Cliente cuenta = clientes.findById(clienteId).orElseThrow();
+    cuenta.setActivo(false); clientes.save(cuenta);
+    enviar(get("/api/pedidos/" + id), cliente, null, 401);
+    enviar(post("/api/pedidos"), cliente, pedido(Modalidad.RECOJO), 401);
+  }
 
 }

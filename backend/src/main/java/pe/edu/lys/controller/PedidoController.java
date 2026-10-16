@@ -21,7 +21,13 @@ public class PedidoController {
     return service.crear(datos, jwt);
   }
 
+  @GetMapping
+  public List<PedidoResponse> listar(@AuthenticationPrincipal Jwt jwt) { return service.listar(jwt); }
 
+  @GetMapping("/{id}")
+  public PedidoResponse consultar(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    return service.consultar(id, jwt);
+  }
 
 
 
