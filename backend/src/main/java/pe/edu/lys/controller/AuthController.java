@@ -21,5 +21,13 @@ public class AuthController {
     return service.registrar(datos);
   }
 
+  @PostMapping("/login/cliente")
+  public LoginResponse cliente(@Valid @RequestBody LoginRequest datos) {
+    return service.loginCliente(datos);
+  }
 
+  @PostMapping("/login/personal")
+  public LoginResponse personal(@Valid @RequestBody LoginRequest datos) {
+    return service.loginPersonal(datos);
+  }
 }

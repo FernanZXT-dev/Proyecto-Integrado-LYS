@@ -58,7 +58,7 @@ public class SecurityConfig {
   SecurityFilterChain seguridad(HttpSecurity http) throws Exception {
     return http.csrf(csrf -> csrf.disable())
       .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-      .authorizeHttpRequests(a -> a.requestMatchers("/api/auth/registro").permitAll().anyRequest().authenticated())
+      .authorizeHttpRequests(a -> a.requestMatchers("/api/auth/registro", "/api/auth/login/cliente", "/api/auth/login/personal").permitAll().anyRequest().authenticated())
       .oauth2ResourceServer(o -> o.jwt(j -> {})).build();
   }
 }

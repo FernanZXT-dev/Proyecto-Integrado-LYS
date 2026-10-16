@@ -52,7 +52,19 @@ class BackendIntegrationTest {
 
 
   @BeforeEach
-  void preparar() { clientes.deleteAll(); usuarios.deleteAll(); }
+  void preparar() {
+    clientes.deleteAll();
+    usuarios.deleteAll();
+    if (roles.findByNombre("ADMINISTRADOR").isEmpty()) {
+      Rol rol = new Rol(); rol.setNombre("ADMINISTRADOR"); roles.save(rol);
+    }
+    Usuario admin = new Usuario();
+    admin.setNombre("Admin");
+    admin.setCorreo("admin@lys.pe");
+    admin.setClave(encoder.encode("ClaveSegura123"));
+    admin.setRol(roles.findByNombre("ADMINISTRADOR").orElseThrow());
+    usuarios.save(admin);
+  }
 
   String body(Object value) throws Exception {
     return json.writeValueAsString(value);
@@ -112,6 +124,22 @@ class BackendIntegrationTest {
   }
 
 
+  @Test
+  void credencialesInvalidasYCuentaInactivaNoIngresan() throws Exception {
+    mvc.perform(
+            post("/api/auth/login/personal")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("correo", "admin@lys.pe", "clave", "incorrecta"))))
+        .andExpect(status().isUnauthorized());
+    var u = usuarios.findByCorreo("admin@lys.pe").orElseThrow();
+    u.setActivo(false);
+    usuarios.save(u);
+    mvc.perform(
+            post("/api/auth/login/personal")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("correo", "admin@lys.pe", "clave", "ClaveSegura123"))))
+        .andExpect(status().isUnauthorized());
+  }
 
 
 
