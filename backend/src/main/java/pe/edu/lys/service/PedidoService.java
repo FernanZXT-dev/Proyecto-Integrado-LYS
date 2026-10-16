@@ -68,9 +68,21 @@ public class PedidoService {
     return respuesta(pedido);
   }
 
+  public PedidoResponse actualizar(Long id, PedidoRequest datos, Jwt jwt) {
+    Pedido pedido = pedidos.bloquear(id).orElseThrow(this::noEncontrado);
+    autorizarPropietario(pedido, actor(jwt));
+    comprobarEditable(pedido);
+    completar(pedido, datos);
+    return respuesta(pedidos.saveAndFlush(pedido));
+  }
 
 
 
+  private void comprobarEditable(Pedido pedido) {
+    if (pedido.getEstado() != EstadoPedido.RECIBIDO)
+      throw new ApiException(HttpStatus.CONFLICT,
+          "Solo se puede modificar o cancelar un pedido recibido que aún no inicia su preparación");
+  }
 
   private void completar(Pedido pedido, PedidoRequest datos) {
     String mesa = limpiar(datos.mesa());

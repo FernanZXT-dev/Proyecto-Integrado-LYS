@@ -11,4 +11,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
   List<Pedido> findAllByOrderByCreadoEnDescIdDesc();
   List<Pedido> findByClienteIdOrderByCreadoEnDescIdDesc(Long clienteId);
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select p from Pedido p where p.id = :id")
+  Optional<Pedido> bloquear(@Param("id") Long id);
 }

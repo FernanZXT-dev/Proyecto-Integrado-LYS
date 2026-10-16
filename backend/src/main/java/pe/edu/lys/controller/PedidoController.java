@@ -29,6 +29,9 @@ public class PedidoController {
     return service.consultar(id, jwt);
   }
 
+  @PutMapping("/{id}")
+  public PedidoResponse actualizar(@PathVariable Long id, @Valid @RequestBody PedidoRequest datos,
+      @AuthenticationPrincipal Jwt jwt) { return service.actualizar(id, datos, jwt); }
 
 
 }

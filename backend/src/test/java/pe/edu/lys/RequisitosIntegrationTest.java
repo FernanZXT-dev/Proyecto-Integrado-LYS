@@ -305,6 +305,17 @@ class RequisitosIntegrationTest {
     enviar(post("/api/pedidos"), cliente, pedido(Modalidad.RECOJO), 409);
   }
 
+  @Test
+  void rf06ModificaYCancelaAntesDePrepararSinBorrarElPedido() throws Exception {
+    long id = crearPedido();
+    Map<String, Object> body = pedido(Modalidad.DELIVERY);
+    body.put("items", List.of(Map.of("productoId", bebidaId, "cantidad", 2)));
+    JsonNode editado = enviar(put("/api/pedidos/" + id), cliente, body, 200);
+    assertEquals(26, editado.get("total").asInt());
+    assertEquals(1, editado.get("items").size());
+    assertEquals(2, editado.get("items").get(0).get("cantidad").asInt());
+    assertEquals("RECIBIDO", enviar(get("/api/pedidos/" + id), cliente, null, 200).get("estado").asText());
+  }
 
 
   @Test
@@ -312,6 +323,7 @@ class RequisitosIntegrationTest {
     long id = crearPedido();
     assertEquals(0, enviar(get("/api/pedidos"), otroCliente, null, 200).size());
     enviar(get("/api/pedidos/" + id), otroCliente, null, 404);
+    enviar(put("/api/pedidos/" + id), otroCliente, pedido(Modalidad.LOCAL), 404);
     enviar(get("/api/pedidos/" + id), null, null, 401);
     enviar(get("/api/pedidos"), cocina, null, 403);
     assertEquals(1, enviar(get("/api/pedidos"), cliente, null, 200).size());
