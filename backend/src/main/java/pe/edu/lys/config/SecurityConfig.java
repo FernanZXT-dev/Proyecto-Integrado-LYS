@@ -83,6 +83,8 @@ public class SecurityConfig {
                         "/api/promociones",
                         "/api/promociones/*")
                     .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/pedidos/*/iniciar-preparacion")
+                    .hasAnyRole("ADMINISTRADOR", "COCINA")
                     .requestMatchers("/api/pedidos", "/api/pedidos/**")
                     .hasAnyRole("ADMINISTRADOR", "CLIENTE", "VENTAS", "MESERA")
                     .requestMatchers(

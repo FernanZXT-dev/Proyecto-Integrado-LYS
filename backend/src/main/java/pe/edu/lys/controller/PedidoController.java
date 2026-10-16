@@ -38,4 +38,8 @@ public class PedidoController {
     return service.cancelar(id, jwt);
   }
 
+  @PostMapping("/{id}/iniciar-preparacion")
+  public PedidoResponse iniciarPreparacion(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    return service.iniciarPreparacion(id, jwt);
+  }
 }

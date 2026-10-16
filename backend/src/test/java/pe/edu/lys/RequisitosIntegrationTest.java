@@ -316,9 +316,20 @@ class RequisitosIntegrationTest {
     assertEquals(2, editado.get("items").get(0).get("cantidad").asInt());
     assertEquals("CANCELADO", enviar(post("/api/pedidos/" + id + "/cancelar"), cliente, null, 200).get("estado").asText());
     enviar(put("/api/pedidos/" + id), cliente, body, 409);
+    enviar(post("/api/pedidos/" + id + "/iniciar-preparacion"), cocina, null, 409);
     assertEquals("CANCELADO", enviar(get("/api/pedidos/" + id), cliente, null, 200).get("estado").asText());
   }
 
+  @Test
+  void rf06ImpideModificarOCancelarUnaVezIniciadaLaPreparacion() throws Exception {
+    long id = crearPedido();
+    enviar(post("/api/pedidos/" + id + "/iniciar-preparacion"), cliente, null, 403);
+    enviar(post("/api/pedidos/" + id + "/iniciar-preparacion"), mesera, null, 403);
+    assertEquals("EN_PREPARACION", enviar(post("/api/pedidos/" + id + "/iniciar-preparacion"), cocina, null, 200).get("estado").asText());
+    enviar(put("/api/pedidos/" + id), cliente, pedido(Modalidad.LOCAL), 409);
+    enviar(post("/api/pedidos/" + id + "/cancelar"), admin, null, 409);
+    assertEquals("EN_PREPARACION", enviar(get("/api/pedidos/" + id), cliente, null, 200).get("estado").asText());
+  }
 
   @Test
   void clienteSoloConsultaModificaOCancelaSusPropiosPedidos() throws Exception {

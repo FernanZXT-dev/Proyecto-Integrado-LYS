@@ -85,6 +85,18 @@ public class PedidoService {
     return respuesta(pedido);
   }
 
+  /** Marca el límite de RF06. El flujo completo de cocina y despacho queda para RF08/RF09. */
+  public PedidoResponse iniciarPreparacion(Long id, Jwt jwt) {
+    Actor actor = actor(jwt);
+    if (actor.usuario() == null || !Set.of("ADMINISTRADOR", "COCINA")
+        .contains(actor.usuario().getRol().getNombre()))
+      throw new ApiException(HttpStatus.FORBIDDEN, "Solo cocina o administración puede iniciar la preparación");
+    Pedido pedido = pedidos.findById(id).orElseThrow(this::noEncontrado);
+    comprobarEditable(pedido);
+    pedido.setEstado(EstadoPedido.EN_PREPARACION);
+    pedido.setActualizadoEn(Instant.now());
+    return respuesta(pedido);
+  }
 
   private void comprobarEditable(Pedido pedido) {
     if (pedido.getEstado() != EstadoPedido.RECIBIDO)
