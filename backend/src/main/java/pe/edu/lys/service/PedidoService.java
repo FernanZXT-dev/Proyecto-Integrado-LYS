@@ -127,6 +127,11 @@ public class PedidoService {
         producto.getOpcionesPersonalizacion().forEach(o -> opciones.add(producto.getId() + ":" + o));
       }
     }
+    for (String seleccion : datos.personalizaciones() == null ? List.<String>of() : datos.personalizaciones()) {
+      String canonica = opciones.stream().filter(o -> o.equalsIgnoreCase(seleccion.trim())).findFirst()
+          .orElseThrow(() -> invalido("Personalización no permitida para el producto o combo: " + seleccion));
+      if (!item.getPersonalizaciones().add(canonica)) throw invalido("Personalizaciones duplicadas");
+    }
     Promocion oferta = ofertas.stream().filter(p -> item.getProducto() != null
         ? p.getProducto() != null && p.getProducto().getId().equals(item.getProducto().getId())
         : p.getCombo() != null && p.getCombo().getId().equals(item.getCombo().getId()))
@@ -137,6 +142,7 @@ public class PedidoService {
     item.setPrecioUnitario(CatalogoComercialService.precioConDescuento(item.getPrecioBase(), item.getPorcentajeDescuento()));
     item.setCantidad(datos.cantidad());
     item.setTotal(item.getPrecioUnitario().multiply(BigDecimal.valueOf(datos.cantidad())));
+    item.setIndicaciones(limpiar(datos.indicaciones()));
     return item;
   }
 

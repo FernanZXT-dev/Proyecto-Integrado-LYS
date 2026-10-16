@@ -131,7 +131,7 @@ class RequisitosIntegrationTest {
     body.put("telefono", "999888777"); body.put("mesa", "03");
     body.put("direccion", "Av. Principal 123"); body.put("referencia", "Puerta azul");
     body.put("items", List.of(Map.of("productoId", productoId, "cantidad", 1,
-        "personalizaciones", List.of())));
+        "personalizaciones", List.of("Sin ensalada"), "indicaciones", "Salsa en envase aparte")));
     return body;
   }
 
@@ -237,7 +237,32 @@ class RequisitosIntegrationTest {
     assertEquals(1, enviar(get("/api/pedidos"), ventas, null, 200).size());
   }
 
+  @Test
+  void rf05PersisteOpcionesEIndicacionesPorLineaYPorComponenteDeCombo() throws Exception {
+    long combo = crearCombo();
+    Map<String, Object> body = pedido(Modalidad.RECOJO);
+    body.put("items", List.of(
+        Map.of("productoId", productoId, "cantidad", 1, "personalizaciones", List.of("Sin ensalada"), "indicaciones", "Sin sal"),
+        Map.of("productoId", productoId, "cantidad", 1, "personalizaciones", List.of("Salsa aparte")),
+        Map.of("comboId", combo, "cantidad", 1, "personalizaciones", List.of(productoId + ":Sin ensalada"))));
+    long id = enviar(post("/api/pedidos"), cliente, body, 201).get("id").asLong();
+    JsonNode guardado = enviar(get("/api/pedidos/" + id), cliente, null, 200);
+    assertEquals(3, guardado.get("items").size());
+    assertEquals("Sin sal", guardado.get("items").get(0).get("indicaciones").asText());
+    assertEquals("Salsa aparte", guardado.get("items").get(1).get("personalizaciones").get(0).asText());
+    assertEquals(productoId + ":Sin ensalada", guardado.get("items").get(2).get("personalizaciones").get(0).asText());
+    assertTrue(guardado.get("items").get(2).get("contenidoCombo").asText().contains("Pollo"));
+  }
 
+  @Test
+  void rf05RechazaOpcionesInventadasYDuplicadas() throws Exception {
+    Map<String, Object> body = pedido(Modalidad.RECOJO);
+    for (List<String> opciones : List.of(List.of("Extra gratis inventado"), List.of("Sin ensalada", "sin ensalada"))) {
+      body.put("items", List.of(Map.of("productoId", productoId, "cantidad", 1, "personalizaciones", opciones)));
+      enviar(post("/api/pedidos"), cliente, body, 400);
+    }
+    assertEquals(0, pedidos.count());
+  }
 
   @Test
   void preciosYDescuentosSeConservanAunqueCambieElCatalogo() throws Exception {
