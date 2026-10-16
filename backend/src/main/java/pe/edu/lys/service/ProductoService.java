@@ -39,7 +39,15 @@ public class ProductoService {
     return guardar(new Producto(), datos);
   }
 
+  @Transactional
+  public ProductoResponse actualizar(Long id, ProductoRequest datos) {
+    return guardar(obtener(id), datos);
+  }
 
+  @Transactional
+  public void desactivar(Long id) {
+    obtener(id).setActivo(false);
+  }
 
   private ProductoResponse guardar(Producto p, ProductoRequest datos) {
     var categoria =

@@ -235,7 +235,87 @@ class BackendIntegrationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void productoSeActualizaYDesactivaSinEliminarse() throws Exception {
+    String token = adminToken();
+    long categoriaId = categoria(token);
+    long id =
+        contenido(
+                mvc.perform(
+                        post("/api/productos")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                body(
+                                    Map.of(
+                                        "nombre",
+                                        "Pollo entero",
+                                        "precio",
+                                        60,
+                                        "categoriaId",
+                                        categoriaId,
+                                        "activo",
+                                        true))))
+                    .andExpect(status().isCreated())
+                    .andReturn())
+            .get("id")
+            .asLong();
+    mvc.perform(
+            put("/api/productos/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    body(
+                        Map.of(
+                            "nombre",
+                            "Pollo entero",
+                            "precio",
+                            65,
+                            "categoriaId",
+                            categoriaId,
+                            "activo",
+                            true))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("precio").value(65));
+    mvc.perform(get("/api/productos/" + id)).andExpect(status().isOk());
+    mvc.perform(delete("/api/productos/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isNoContent());
+    mvc.perform(get("/api/productos/" + id)).andExpect(status().isNotFound());
+    mvc.perform(get("/api/productos")).andExpect(jsonPath("$.length()").value(0));
+    assertTrue(productos.existsById(id));
+    mvc.perform(get("/api/admin/productos").header("Authorization", "Bearer " + token))
+        .andExpect(jsonPath("$.length()").value(1));
+  }
 
+  @Test
+  void categoriaInactivaOcultaProductosYRechazaNuevos() throws Exception {
+    String token = adminToken();
+    long id = categoria(token);
+    var request = body(Map.of("nombre", "Pollo", "precio", 30, "categoriaId", id, "activo", true));
+    mvc.perform(
+            post("/api/productos")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isCreated());
+    mvc.perform(delete("/api/categorias/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isNoContent());
+    mvc.perform(get("/api/productos")).andExpect(jsonPath("$.length()").value(0));
+    mvc.perform(get("/api/categorias/" + id)).andExpect(status().isNotFound());
+    mvc.perform(
+            post("/api/productos")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+        .andExpect(status().isConflict());
+    mvc.perform(
+            put("/api/categorias/" + id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("nombre", "Pollos", "activo", true))))
+        .andExpect(status().isOk());
+    mvc.perform(get("/api/productos")).andExpect(jsonPath("$.length()").value(1));
+  }
 
   @Test
   void contrasenaMultibyteExcesivaSeRechaza() throws Exception {

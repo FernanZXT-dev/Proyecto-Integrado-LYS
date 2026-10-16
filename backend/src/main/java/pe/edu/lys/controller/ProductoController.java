@@ -37,5 +37,15 @@ public class ProductoController {
     return service.crear(datos);
   }
 
+  @PutMapping("/productos/{id}")
+  public ProductoResponse actualizar(
+      @PathVariable Long id, @Valid @RequestBody ProductoRequest datos) {
+    return service.actualizar(id, datos);
+  }
 
+  @DeleteMapping("/productos/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void desactivar(@PathVariable Long id) {
+    service.desactivar(id);
+  }
 }
