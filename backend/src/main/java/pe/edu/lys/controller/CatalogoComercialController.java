@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import pe.edu.lys.dto.ComboDtos.*;
 import pe.edu.lys.dto.PromocionDtos.*;
 import pe.edu.lys.service.CatalogoComercialService;
+import pe.edu.lys.service.CatalogoComercialService.CatalogoResponse;
 
 @RestController
 @RequestMapping("/api")
@@ -15,6 +16,8 @@ public class CatalogoComercialController {
 
   public CatalogoComercialController(CatalogoComercialService service) { this.service = service; }
 
+  @GetMapping("/catalogo")
+  public CatalogoResponse catalogo() { return service.catalogo(); }
 
   @GetMapping("/combos")
   public List<ComboResponse> combos() { return service.listarCombos(false); }

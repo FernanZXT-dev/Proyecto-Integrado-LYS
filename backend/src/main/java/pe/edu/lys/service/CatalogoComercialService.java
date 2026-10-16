@@ -30,7 +30,13 @@ public class CatalogoComercialService {
     this.productoService = productoService;
   }
 
+  public record CatalogoResponse(List<ProductoResponse> productos, List<ComboResponse> combos,
+      List<PromocionResponse> promociones) {}
 
+  @Transactional(readOnly = true)
+  public CatalogoResponse catalogo() {
+    return new CatalogoResponse(productoService.listar(false), listarCombos(false), listarPromociones(false));
+  }
 
   @Transactional(readOnly = true)
   public List<ComboResponse> listarCombos(boolean gestion) {

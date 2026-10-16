@@ -175,6 +175,25 @@ class RequisitosIntegrationTest {
     assertEquals(1, enviar(get("/api/admin/promociones"), admin, null, 200).size());
   }
 
+  @Test
+  void rf03CatalogoSoloPublicaDisponiblesYPromocionesVigentes() throws Exception {
+    long combo = crearCombo();
+    promocion(null, combo, 10);
+    promocion(productoId, null, 20);
+    enviar(post("/api/promociones"), admin, promoBody(bebidaId, null, 30,
+        Instant.now().plusSeconds(3600), Instant.now().plusSeconds(7200)), 201);
+    enviar(post("/api/promociones"), admin, promoBody(bebidaId, null, 40,
+        Instant.now().minusSeconds(7200), Instant.now().minusSeconds(3600)), 201);
+    JsonNode catalogo = enviar(get("/api/catalogo"), null, null, 200);
+    assertEquals(2, catalogo.get("productos").size());
+    assertEquals(1, catalogo.get("combos").size());
+    assertEquals(2, catalogo.get("promociones").size());
+    enviar(delete("/api/productos/" + productoId), admin, null, 204);
+    catalogo = enviar(get("/api/catalogo"), null, null, 200);
+    assertEquals(1, catalogo.get("productos").size());
+    assertEquals(0, catalogo.get("combos").size());
+    assertEquals(0, catalogo.get("promociones").size());
+  }
 
 
 
