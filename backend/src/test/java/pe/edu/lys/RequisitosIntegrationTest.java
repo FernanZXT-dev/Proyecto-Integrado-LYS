@@ -46,11 +46,13 @@ class RequisitosIntegrationTest {
   @Autowired CategoriaRepository categorias;
   @Autowired ProductoRepository productos;
   @Autowired ComboRepository combos;
+  @Autowired PromocionRepository promociones;
   private String admin, cliente, otroCliente, cocina, mesera, ventas;
   private long clienteId, productoId, bebidaId;
 
   @BeforeEach
   void preparar() throws Exception {
+    promociones.deleteAll();
     combos.deleteAll();
     productos.deleteAll();
     categorias.deleteAll();
@@ -107,7 +109,19 @@ class RequisitosIntegrationTest {
     return enviar(post("/api/combos"), admin, comboBody(true), 201).get("id").asLong();
   }
 
+  private Map<String, Object> promoBody(Long producto, Long combo, int descuento, Instant inicio, Instant fin) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("nombre", "Promoción " + descuento); body.put("porcentajeDescuento", descuento);
+    body.put("inicio", inicio.toString()); body.put("fin", fin.toString()); body.put("activo", true);
+    if (producto != null) body.put("productoId", producto);
+    if (combo != null) body.put("comboId", combo);
+    return body;
+  }
 
+  private long promocion(Long producto, Long combo, int descuento) throws Exception {
+    return enviar(post("/api/promociones"), admin, promoBody(producto, combo, descuento,
+        Instant.now().minusSeconds(3600), Instant.now().plusSeconds(3600)), 201).get("id").asLong();
+  }
 
 
 
@@ -141,6 +155,25 @@ class RequisitosIntegrationTest {
     enviar(delete("/api/combos/" + id), mesera, null, 403);
   }
 
+  @Test
+  void rf02PromocionesSeEditanReactivanYValidanFechasYDestino() throws Exception {
+    long id = promocion(productoId, null, 10);
+    Map<String, Object> body = promoBody(null, crearCombo(), 20,
+        Instant.now().minusSeconds(100), Instant.now().plusSeconds(1000));
+    JsonNode editada = enviar(put("/api/promociones/" + id), admin, body, 200);
+    assertTrue(editada.get("productoId").isNull());
+    assertEquals(52, editada.get("precioPromocional").asInt());
+    enviar(delete("/api/promociones/" + id), admin, null, 204);
+    enviar(get("/api/promociones/" + id), null, null, 404);
+    enviar(put("/api/promociones/" + id), admin, body, 200);
+    enviar(get("/api/promociones/" + id), null, null, 200);
+    body.put("productoId", productoId);
+    enviar(post("/api/promociones"), admin, body, 400);
+    body.remove("productoId"); body.put("fin", body.get("inicio"));
+    enviar(post("/api/promociones"), admin, body, 400);
+    enviar(post("/api/promociones"), cliente, body, 403);
+    assertEquals(1, enviar(get("/api/admin/promociones"), admin, null, 200).size());
+  }
 
 
 
@@ -154,6 +187,20 @@ class RequisitosIntegrationTest {
 
 
 
+  @Test
+  void validaComposicionDeCombosYLimitesDeDescuento() throws Exception {
+    Map<String, Object> body = new LinkedHashMap<>(comboBody(true));
+    body.put("items", List.of(Map.of("productoId", productoId, "cantidad", 1),
+        Map.of("productoId", productoId, "cantidad", 1)));
+    enviar(post("/api/combos"), admin, body, 400);
+    body.put("items", List.of()); enviar(post("/api/combos"), admin, body, 400);
+    body.put("items", List.of(Map.of("productoId", 999999, "cantidad", 1)));
+    enviar(post("/api/combos"), admin, body, 404);
+    enviar(post("/api/promociones"), admin, promoBody(productoId, null, 101,
+        Instant.now().minusSeconds(60), Instant.now().plusSeconds(60)), 400);
+    assertEquals(0, combos.count());
+    assertEquals(0, promociones.count());
+  }
 
 
 }

@@ -15,4 +15,10 @@ final class Disponibilidad {
         && combo.getItems().stream().allMatch(i -> producto(i.getProducto()));
   }
 
+  static boolean promocion(Promocion promocion, Instant ahora) {
+    return promocion.isActivo() && !ahora.isBefore(promocion.getInicio())
+        && ahora.isBefore(promocion.getFin())
+        && (promocion.getProducto() != null
+            ? producto(promocion.getProducto()) : combo(promocion.getCombo()));
+  }
 }
