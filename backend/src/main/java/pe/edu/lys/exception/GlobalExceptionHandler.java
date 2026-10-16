@@ -46,4 +46,9 @@ public class GlobalExceptionHandler {
                 409, "Los datos duplican o incumplen una relación existente", Map.of()));
   }
 
+  @ExceptionHandler({ObjectOptimisticLockingFailureException.class, CannotAcquireLockException.class})
+  ResponseEntity<ErrorRespuesta> concurrencia(Exception e) {
+    return ResponseEntity.status(409).body(new ErrorRespuesta(
+        409, "El registro cambió en otra operación; volver a consultar e intentar nuevamente", Map.of()));
+  }
 }

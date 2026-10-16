@@ -387,4 +387,26 @@ class RequisitosIntegrationTest {
     enviar(post("/api/pedidos"), cliente, pedido(Modalidad.RECOJO), 401);
   }
 
+  @Test
+  void cancelacionYPreparacionConcurrentesNoPuedenConfirmarseAmbas() throws Exception {
+    long id = crearPedido();
+    CountDownLatch inicio = new CountDownLatch(1);
+    ExecutorService workers = Executors.newFixedThreadPool(2);
+    try {
+      Future<Integer> cancelar = workers.submit(() -> {
+        inicio.await();
+        return mvc.perform(post("/api/pedidos/" + id + "/cancelar")
+            .header("Authorization", "Bearer " + cliente)).andReturn().getResponse().getStatus();
+      });
+      Future<Integer> preparar = workers.submit(() -> {
+        inicio.await();
+        return mvc.perform(post("/api/pedidos/" + id + "/iniciar-preparacion")
+            .header("Authorization", "Bearer " + cocina)).andReturn().getResponse().getStatus();
+      });
+      inicio.countDown();
+      List<Integer> estados = new ArrayList<>(List.of(cancelar.get(15, TimeUnit.SECONDS), preparar.get(15, TimeUnit.SECONDS)));
+      Collections.sort(estados);
+      assertEquals(List.of(200, 409), estados);
+    } finally { workers.shutdownNow(); }
+  }
 }

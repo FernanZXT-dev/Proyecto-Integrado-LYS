@@ -91,7 +91,7 @@ public class PedidoService {
     if (actor.usuario() == null || !Set.of("ADMINISTRADOR", "COCINA")
         .contains(actor.usuario().getRol().getNombre()))
       throw new ApiException(HttpStatus.FORBIDDEN, "Solo cocina o administración puede iniciar la preparación");
-    Pedido pedido = pedidos.findById(id).orElseThrow(this::noEncontrado);
+    Pedido pedido = pedidos.bloquear(id).orElseThrow(this::noEncontrado);
     comprobarEditable(pedido);
     pedido.setEstado(EstadoPedido.EN_PREPARACION);
     pedido.setActualizadoEn(Instant.now());
