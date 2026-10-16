@@ -33,5 +33,9 @@ public class PedidoController {
   public PedidoResponse actualizar(@PathVariable Long id, @Valid @RequestBody PedidoRequest datos,
       @AuthenticationPrincipal Jwt jwt) { return service.actualizar(id, datos, jwt); }
 
+  @PostMapping("/{id}/cancelar")
+  public PedidoResponse cancelar(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    return service.cancelar(id, jwt);
+  }
 
 }

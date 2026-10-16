@@ -76,6 +76,14 @@ public class PedidoService {
     return respuesta(pedidos.saveAndFlush(pedido));
   }
 
+  public PedidoResponse cancelar(Long id, Jwt jwt) {
+    Pedido pedido = pedidos.bloquear(id).orElseThrow(this::noEncontrado);
+    autorizarPropietario(pedido, actor(jwt));
+    comprobarEditable(pedido);
+    pedido.setEstado(EstadoPedido.CANCELADO);
+    pedido.setActualizadoEn(Instant.now());
+    return respuesta(pedido);
+  }
 
 
   private void comprobarEditable(Pedido pedido) {

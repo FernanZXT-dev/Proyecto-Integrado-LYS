@@ -314,7 +314,9 @@ class RequisitosIntegrationTest {
     assertEquals(26, editado.get("total").asInt());
     assertEquals(1, editado.get("items").size());
     assertEquals(2, editado.get("items").get(0).get("cantidad").asInt());
-    assertEquals("RECIBIDO", enviar(get("/api/pedidos/" + id), cliente, null, 200).get("estado").asText());
+    assertEquals("CANCELADO", enviar(post("/api/pedidos/" + id + "/cancelar"), cliente, null, 200).get("estado").asText());
+    enviar(put("/api/pedidos/" + id), cliente, body, 409);
+    assertEquals("CANCELADO", enviar(get("/api/pedidos/" + id), cliente, null, 200).get("estado").asText());
   }
 
 
@@ -324,6 +326,7 @@ class RequisitosIntegrationTest {
     assertEquals(0, enviar(get("/api/pedidos"), otroCliente, null, 200).size());
     enviar(get("/api/pedidos/" + id), otroCliente, null, 404);
     enviar(put("/api/pedidos/" + id), otroCliente, pedido(Modalidad.LOCAL), 404);
+    enviar(post("/api/pedidos/" + id + "/cancelar"), otroCliente, null, 404);
     enviar(get("/api/pedidos/" + id), null, null, 401);
     enviar(get("/api/pedidos"), cocina, null, 403);
     assertEquals(1, enviar(get("/api/pedidos"), cliente, null, 200).size());
