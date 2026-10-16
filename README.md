@@ -17,4 +17,8 @@ Consultar la [guia de configuracion](backend/README.md) para crear el administra
 
 La importacion inicial organiza el codigo existente en commits incrementales; no reconstruye fechas ni una historia de desarrollo anterior. La carpeta original de Descargas no se modifica.
 
+## Alcance actual
+
+RF01 a RF06 implementados en el backend; frontend pendiente de integrar. Consultar [alcance y diferencias con el documento](backend/docs/ALCANCE-Y-DOCUMENTO.md). Caja, cocina completa, reparto, notificaciones y reportes quedan pendientes.
+
 El frontend existente se conserva en [Front-Polleria-LYS-main/](Front-Polleria-LYS-main/README.md), incorporado previamente en dev. Su conexion y validacion con este backend siguen pendientes.
