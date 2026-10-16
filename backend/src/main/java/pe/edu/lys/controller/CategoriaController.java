@@ -37,5 +37,15 @@ public class CategoriaController {
     return service.crear(datos);
   }
 
+  @PutMapping("/categorias/{id}")
+  public CategoriaResponse actualizar(
+      @PathVariable Long id, @Valid @RequestBody CategoriaRequest datos) {
+    return service.actualizar(id, datos);
+  }
 
+  @DeleteMapping("/categorias/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void desactivar(@PathVariable Long id) {
+    service.desactivar(id);
+  }
 }

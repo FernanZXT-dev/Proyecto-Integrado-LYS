@@ -35,7 +35,15 @@ public class CategoriaService {
     return guardar(new Categoria(), datos);
   }
 
+  @Transactional
+  public CategoriaResponse actualizar(Long id, CategoriaRequest datos) {
+    return guardar(obtener(id), datos);
+  }
 
+  @Transactional
+  public void desactivar(Long id) {
+    obtener(id).setActivo(false);
+  }
 
   private CategoriaResponse guardar(Categoria c, CategoriaRequest datos) {
     String nombre = datos.nombre().trim();
