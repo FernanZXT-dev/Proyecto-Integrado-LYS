@@ -164,6 +164,42 @@ class BackendIntegrationTest {
   }
 
 
+  @Test
+  void administradorCreaPersonalConRolYNoExponeClave() throws Exception {
+    String token = adminToken();
+    long rol = roles.findByNombre("COCINA").orElseThrow().getId();
+    mvc.perform(
+            post("/api/usuarios")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    body(
+                        Map.of(
+                            "nombre",
+                            "Cocinero",
+                            "correo",
+                            "cocina@lys.pe",
+                            "clave",
+                            "ClaveCocina123",
+                            "rolId",
+                            rol))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("rol").value("COCINA"))
+        .andExpect(jsonPath("clave").doesNotExist());
+    String cocinaToken =
+        contenido(
+                mvc.perform(
+                        post("/api/auth/login/personal")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                body(Map.of("correo", "cocina@lys.pe", "clave", "ClaveCocina123"))))
+                    .andExpect(status().isOk())
+                    .andReturn())
+            .get("token")
+            .asText();
+    mvc.perform(get("/api/roles").header("Authorization", "Bearer " + cocinaToken))
+        .andExpect(status().isForbidden());
+  }
 
 
 

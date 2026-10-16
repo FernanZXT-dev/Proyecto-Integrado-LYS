@@ -18,6 +18,11 @@ public class UsuarioController {
   }
 
 
+  @PostMapping("/usuarios")
+  @ResponseStatus(HttpStatus.CREATED)
+  public CuentaResponse crear(@Valid @RequestBody CrearUsuarioRequest datos) {
+    return service.crear(datos);
+  }
 
   @GetMapping("/roles")
   public List<RolResponse> roles() {
