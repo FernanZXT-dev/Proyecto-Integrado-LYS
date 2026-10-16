@@ -48,11 +48,23 @@ class BackendIntegrationTest {
   @Autowired ClienteRepository clientes;
   @Autowired UsuarioRepository usuarios;
   @Autowired RolRepository roles;
+  @Autowired ProductoRepository productos;
+  @Autowired CategoriaRepository categorias;
   @Autowired PasswordEncoder encoder;
 
+  @Test
+  void usaPostgresConMigracionesEnUnEsquemaAislado() {
+    assertTrue(jdbc.queryForObject("select version()", String.class).startsWith("PostgreSQL"));
+    assertEquals(DATABASE.schema(), jdbc.queryForObject("select current_schema()", String.class));
+    assertEquals(1, jdbc.queryForObject(
+        "select count(*) from flyway_schema_history where success = true and version = '1'",
+        Integer.class));
+  }
 
   @BeforeEach
   void preparar() {
+    productos.deleteAll();
+    categorias.deleteAll();
     clientes.deleteAll();
     usuarios.deleteAll();
     Usuario admin = new Usuario();
@@ -103,6 +115,18 @@ class BackendIntegrationTest {
         .andExpect(jsonPath("clave").doesNotExist());
   }
 
+  long categoria(String token) throws Exception {
+    return contenido(
+            mvc.perform(
+                    post("/api/categorias")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body(Map.of("nombre", "Pollos", "activo", true))))
+                .andExpect(status().isCreated())
+                .andReturn())
+        .get("id")
+        .asLong();
+  }
 
   @Test
   void registroCifraClaveYEvitaDuplicados() throws Exception {
@@ -163,6 +187,13 @@ class BackendIntegrationTest {
         .andExpect(status().isUnauthorized());
   }
 
+  @Test
+  void catalogoPublicoYOperacionesProtegidas() throws Exception {
+    mvc.perform(get("/api/productos")).andExpect(status().isOk());
+    mvc.perform(post("/api/productos")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/usuarios").header("Authorization", "Bearer falso.token.falso"))
+        .andExpect(status().isUnauthorized());
+  }
 
   @Test
   void administradorCreaPersonalConRolYNoExponeClave() throws Exception {
@@ -217,4 +248,39 @@ class BackendIntegrationTest {
     assertFalse(clientes.existsByCorreo("ana@lys.pe"));
   }
 
+  @Test
+  void validacionesYNoEncontrados() throws Exception {
+    String token = adminToken();
+    mvc.perform(
+            post("/api/auth/registro")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("nombre", "", "correo", "invalido", "clave", "123"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("campos.correo").exists());
+    mvc.perform(
+            post("/api/productos")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    body(
+                        Map.of(
+                            "nombre", "Pollo", "precio", -5, "categoriaId", 999, "activo", true))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("campos.precio").exists());
+    mvc.perform(get("/api/productos/999")).andExpect(status().isNotFound());
+    mvc.perform(get("/api/productos/abc")).andExpect(status().isBadRequest());
+    mvc.perform(
+            post("/api/categorias")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{"))
+        .andExpect(status().isBadRequest());
+    categoria(token);
+    mvc.perform(
+            post("/api/categorias")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("nombre", "POLLOS", "activo", true))))
+        .andExpect(status().isConflict());
+  }
 }
