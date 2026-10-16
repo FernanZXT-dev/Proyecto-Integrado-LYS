@@ -56,9 +56,47 @@ public class SecurityConfig {
 
   @Bean
   SecurityFilterChain seguridad(HttpSecurity http) throws Exception {
+    JwtGrantedAuthoritiesConverter roles = new JwtGrantedAuthoritiesConverter();
+    roles.setAuthoritiesClaimName("rol");
+    roles.setAuthorityPrefix("ROLE_");
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(roles);
     return http.csrf(csrf -> csrf.disable())
-      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-      .authorizeHttpRequests(a -> a.requestMatchers("/api/auth/registro", "/api/auth/login/cliente", "/api/auth/login/personal").permitAll().anyRequest().authenticated())
-      .oauth2ResourceServer(o -> o.jwt(j -> {})).build();
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            a ->
+                a.requestMatchers(
+                        HttpMethod.POST,
+                        "/api/auth/registro",
+                        "/api/auth/login/cliente",
+                        "/api/auth/login/personal")
+                    .permitAll()
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/productos",
+                        "/api/productos/*",
+                        "/api/categorias",
+                        "/api/categorias/*",
+                        "/api/catalogo",
+                        "/api/combos",
+                        "/api/combos/*",
+                        "/api/promociones",
+                        "/api/promociones/*")
+                    .permitAll()
+                    .requestMatchers("/api/pedidos", "/api/pedidos/**")
+                    .hasAnyRole("ADMINISTRADOR", "CLIENTE", "VENTAS", "MESERA")
+                    .requestMatchers(
+                        "/api/admin/**",
+                        "/api/usuarios/**",
+                        "/api/roles/**",
+                        "/api/productos/**",
+                        "/api/categorias/**",
+                        "/api/combos/**",
+                        "/api/promociones/**")
+                    .hasRole("ADMINISTRADOR")
+                    .anyRequest()
+                    .denyAll())
+        .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(converter)))
+        .build();
   }
 }

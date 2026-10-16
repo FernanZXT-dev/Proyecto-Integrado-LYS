@@ -55,9 +55,6 @@ class BackendIntegrationTest {
   void preparar() {
     clientes.deleteAll();
     usuarios.deleteAll();
-    if (roles.findByNombre("ADMINISTRADOR").isEmpty()) {
-      Rol rol = new Rol(); rol.setNombre("ADMINISTRADOR"); roles.save(rol);
-    }
     Usuario admin = new Usuario();
     admin.setNombre("Admin");
     admin.setCorreo("admin@lys.pe");
@@ -123,6 +120,31 @@ class BackendIntegrationTest {
         .andExpect(status().isConflict());
   }
 
+  @Test
+  void clienteNoPuedeGestionarCatalogoNiUsuarios() throws Exception {
+    registrar();
+    String token =
+        contenido(
+                mvc.perform(
+                        post("/api/auth/login/cliente")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(
+                                body(Map.of("correo", "ana@lys.pe", "clave", "ClaveCliente123"))))
+                    .andExpect(status().isOk())
+                    .andReturn())
+            .get("token")
+            .asText();
+    mvc.perform(
+            post("/api/categorias")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("nombre", "Pollos", "activo", true))))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/usuarios").header("Authorization", "Bearer " + token))
+        .andExpect(status().isForbidden());
+    mvc.perform(get("/api/admin/productos").header("Authorization", "Bearer " + token))
+        .andExpect(status().isForbidden());
+  }
 
   @Test
   void credencialesInvalidasYCuentaInactivaNoIngresan() throws Exception {
