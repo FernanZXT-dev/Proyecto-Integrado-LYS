@@ -1,0 +1,1167 @@
+{
+  "info": {
+    "name": "Pollería LYS — RF01 a RF06",
+    "description": "Avance de backend PostgreSQL. Configurar credenciales en las variables y ejecutar en orden. Crea datos de demostración. No incluir contraseñas o tokens al compartir una exportación.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    },
+    {
+      "key": "adminCorreo",
+      "value": "admin@lys.pe"
+    },
+    {
+      "key": "adminClave",
+      "value": ""
+    },
+    {
+      "key": "clienteClave",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Acceso — configurar adminCorreo, adminClave y clienteClave",
+      "item": [
+        {
+          "name": "Iniciar sesión de administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login/personal",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{adminCorreo}}\",\n  \"clave\": \"{{adminClave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminClave') || !pm.collectionVariables.get('clienteClave')) throw new Error('Configurar adminClave y clienteClave en las variables de la colección antes de ejecutarla.');",
+                  "const sufijo = Date.now().toString() + Math.floor(Math.random() * 10000).toString();",
+                  "pm.collectionVariables.set('sufijo', sufijo);",
+                  "pm.collectionVariables.set('clienteCorreo', 'demo-' + sufijo + '@example.test');",
+                  "pm.collectionVariables.set('inicioPromo', new Date(Date.now() - 3600000).toISOString());",
+                  "pm.collectionVariables.set('finPromo', new Date(Date.now() + 3600000).toISOString());",
+                  "['adminToken','clienteToken','categoriaId','productoId','bebidaId','comboId','promocionId','pedidoLocalId','pedidoRecojoId','pedidoDeliveryId'].forEach(k => pm.collectionVariables.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar cliente de demostración",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/registro",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente demostración\",\n  \"correo\": \"{{clienteCorreo}}\",\n  \"clave\": \"{{clienteClave}}\",\n  \"telefono\": \"999888777\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión de cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login/cliente",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{clienteCorreo}}\",\n  \"clave\": \"{{clienteClave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) pm.collectionVariables.set('clienteToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. RF01 — crear, editar, desactivar y activar productos",
+      "item": [
+        {
+          "name": "Crear categoría de demostración",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categorias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Demostración {{sufijo}}\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('categoriaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear producto personalizable",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pollo demostración\",\n  \"descripcion\": \"Con papas y ensalada\",\n  \"precio\": 60,\n  \"categoriaId\": {{categoriaId}},\n  \"activo\": true,\n  \"opcionesPersonalizacion\": [\n    \"Sin ensalada\",\n    \"Sin papas\",\n    \"Salsa aparte\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('productoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear bebida",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Bebida demostración\",\n  \"descripcion\": \"Con papas y ensalada\",\n  \"precio\": 10,\n  \"categoriaId\": {{categoriaId}},\n  \"activo\": true,\n  \"opcionesPersonalizacion\": [\n    \"Sin hielo\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bebidaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar precio de producto",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/productos/{{productoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pollo demostración\",\n  \"descripcion\": \"Con papas y ensalada\",\n  \"precio\": 62,\n  \"categoriaId\": {{categoriaId}},\n  \"activo\": true,\n  \"opcionesPersonalizacion\": [\n    \"Sin ensalada\",\n    \"Sin papas\",\n    \"Salsa aparte\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Desactivar producto",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/productos/{{productoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comprobar que se oculta del catálogo público",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/productos/{{productoId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivar producto y restaurar precio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/productos/{{productoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pollo demostración\",\n  \"descripcion\": \"Con papas y ensalada\",\n  \"precio\": 60,\n  \"categoriaId\": {{categoriaId}},\n  \"activo\": true,\n  \"opcionesPersonalizacion\": [\n    \"Sin ensalada\",\n    \"Sin papas\",\n    \"Salsa aparte\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente no puede editar productos",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/productos/{{productoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Pollo demostración\",\n  \"descripcion\": \"Con papas y ensalada\",\n  \"precio\": 60,\n  \"categoriaId\": {{categoriaId}},\n  \"activo\": true,\n  \"opcionesPersonalizacion\": [\n    \"Sin ensalada\",\n    \"Sin papas\",\n    \"Salsa aparte\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. RF02 — administrar combos y promociones",
+      "item": [
+        {
+          "name": "Crear combo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/combos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Combo demostración\",\n  \"descripcion\": \"Pollo y bebida\",\n  \"precio\": 65,\n  \"activo\": true,\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1\n    },\n    {\n      \"productoId\": {{bebidaId}},\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('comboId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar combo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/combos/{{comboId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Combo demostración\",\n  \"descripcion\": \"Pollo y bebida\",\n  \"precio\": 70,\n  \"activo\": true,\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1\n    },\n    {\n      \"productoId\": {{bebidaId}},\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Desactivar combo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/combos/{{comboId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar combos incluyendo inactivos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/combos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivar combo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/combos/{{comboId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Combo demostración\",\n  \"descripcion\": \"Pollo y bebida\",\n  \"precio\": 65,\n  \"activo\": true,\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1\n    },\n    {\n      \"productoId\": {{bebidaId}},\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear promoción para producto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/promociones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Promoción demostración\",\n  \"productoId\": {{productoId}},\n  \"porcentajeDescuento\": 10,\n  \"inicio\": \"{{inicioPromo}}\",\n  \"fin\": \"{{finPromo}}\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('promocionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar descuento a veinte por ciento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/promociones/{{promocionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Promoción demostración\",\n  \"productoId\": {{productoId}},\n  \"porcentajeDescuento\": 20,\n  \"inicio\": \"{{inicioPromo}}\",\n  \"fin\": \"{{finPromo}}\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Desactivar promoción",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/promociones/{{promocionId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivar promoción",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/promociones/{{promocionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Promoción demostración\",\n  \"productoId\": {{productoId}},\n  \"porcentajeDescuento\": 20,\n  \"inicio\": \"{{inicioPromo}}\",\n  \"fin\": \"{{finPromo}}\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear promoción para combo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/promociones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Promoción de combo\",\n  \"porcentajeDescuento\": 10,\n  \"inicio\": \"{{inicioPromo}}\",\n  \"fin\": \"{{finPromo}}\",\n  \"activo\": true,\n  \"comboId\": {{comboId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. RF03 — consultar catálogo disponible",
+      "item": [
+        {
+          "name": "Catálogo público completo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalogo"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Incluye productos, combos y promociones', function () { const c=pm.response.json(); pm.expect(c.productos).to.be.an('array').that.is.not.empty; pm.expect(c.combos).to.be.an('array').that.is.not.empty; pm.expect(c.promociones).to.be.an('array').that.is.not.empty; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. RF04 y RF05 — modalidades y personalización",
+      "item": [
+        {
+          "name": "Crear pedido local",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"LOCAL\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"mesa\": \"03\",\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"Sin ensalada\"\n      ],\n      \"indicaciones\": \"Salsa en envase aparte\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('pedidoLocalId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear pedido para recojo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"RECOJO\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"Sin ensalada\"\n      ],\n      \"indicaciones\": \"Salsa en envase aparte\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('pedidoRecojoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear delivery con producto y combo personalizados",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"DELIVERY\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"direccion\": \"Av. Principal 123\",\n  \"referencia\": \"Puerta azul\",\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"Sin ensalada\"\n      ],\n      \"indicaciones\": \"Salsa en envase aparte\"\n    },\n    {\n      \"comboId\": {{comboId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"{{productoId}}:Sin papas\"\n      ],\n      \"indicaciones\": \"Separar en dos bolsas\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('pedidoDeliveryId', pm.response.json().id);",
+                  "pm.test('El servidor aplica descuentos y cargo por delivery', function () { pm.expect(pm.response.json().total).to.eql(112.5); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar personalizaciones guardadas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoDeliveryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Conserva indicaciones y opciones', function () { const p=pm.response.json(); pm.expect(p.items[0].personalizaciones).to.include('Sin ensalada'); pm.expect(p.items[0].indicaciones).to.eql('Salsa en envase aparte'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar únicamente mis pedidos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. RF06 — modificar, cancelar y bloquear al preparar",
+      "item": [
+        {
+          "name": "Modificar pedido recibido",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoRecojoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"RECOJO\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"items\": [\n    {\n      \"productoId\": {{bebidaId}},\n      \"cantidad\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar pedido antes de preparar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoRecojoId}}/cancelar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Pedido cancelado', function () { pm.expect(pm.response.json().estado).to.eql('CANCELADO'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pedido cancelado no se puede modificar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoRecojoId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"RECOJO\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"Sin ensalada\"\n      ],\n      \"indicaciones\": \"Salsa en envase aparte\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente no puede iniciar preparación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoDeliveryId}}/iniciar-preparacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', function () { pm.response.to.have.status(403); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Administrador inicia la preparación",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoDeliveryId}}/iniciar-preparacion"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Preparación iniciada', function () { pm.expect(pm.response.json().estado).to.eql('EN_PREPARACION'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ya no se permite cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoDeliveryId}}/cancelar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ya no se permite modificar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{clienteToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoDeliveryId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modalidad\": \"DELIVERY\",\n  \"nombreContacto\": \"Cliente demostración\",\n  \"telefono\": \"999888777\",\n  \"direccion\": \"Av. Principal 123\",\n  \"referencia\": \"Puerta azul\",\n  \"items\": [\n    {\n      \"productoId\": {{productoId}},\n      \"cantidad\": 1,\n      \"personalizaciones\": [\n        \"Sin ensalada\"\n      ],\n      \"indicaciones\": \"Salsa en envase aparte\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
