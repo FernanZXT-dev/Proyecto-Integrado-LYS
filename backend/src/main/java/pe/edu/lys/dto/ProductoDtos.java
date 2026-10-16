@@ -12,7 +12,8 @@ public final class ProductoDtos {
       @Size(max = 500) String descripcion,
       @NotNull @DecimalMin("0.01") @Digits(integer = 8, fraction = 2) BigDecimal precio,
       @NotNull Long categoriaId,
-      @NotNull Boolean activo) {}
+      @NotNull Boolean activo,
+      @Size(max = 20) List<@NotBlank @Size(max = 80) String> opcionesPersonalizacion) {}
 
   public record ProductoResponse(
       Long id,
@@ -21,5 +22,6 @@ public final class ProductoDtos {
       BigDecimal precio,
       Long categoriaId,
       String categoria,
-      boolean activo) {}
+      boolean activo,
+      List<String> opcionesPersonalizacion) {}
 }

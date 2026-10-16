@@ -31,4 +31,8 @@ public class Producto {
   @JoinColumn(name = "categoria_id")
   private Categoria categoria;
 
+  @ElementCollection
+  @CollectionTable(name = "producto_personalizaciones", joinColumns = @JoinColumn(name = "producto_id"))
+  @Column(name = "opcion", nullable = false, length = 80)
+  private Set<String> opcionesPersonalizacion = new LinkedHashSet<>();
 }

@@ -61,6 +61,15 @@ public class ProductoService {
     p.setPrecio(datos.precio());
     p.setCategoria(categoria);
     p.setActivo(datos.activo());
+    p.getOpcionesPersonalizacion().clear();
+    if (datos.opcionesPersonalizacion() != null) {
+      for (String opcion : datos.opcionesPersonalizacion()) {
+        String limpia = opcion.trim();
+        if (p.getOpcionesPersonalizacion().stream().anyMatch(o -> o.equalsIgnoreCase(limpia)))
+          throw new ApiException(HttpStatus.BAD_REQUEST, "Opciones de personalización duplicadas");
+        p.getOpcionesPersonalizacion().add(limpia);
+      }
+    }
     return respuesta(productos.save(p));
   }
 
@@ -80,6 +89,7 @@ public class ProductoService {
         p.getPrecio(),
         p.getCategoria().getId(),
         p.getCategoria().getNombre(),
-        p.isActivo());
+        p.isActivo(),
+        p.getOpcionesPersonalizacion().stream().sorted().toList());
   }
 }
